@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="beige">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PSAT Vitamin Lab | 5급 자료해석 비타민 연산 트레이너</title>
+  <meta name="description" content="PSAT 5급 공채 및 공직적격성평가 자료해석 고득점을 위한 스피드 비타민 연산 훈련기. 덧셈, 뺄셈, 곱셈, 분수비교, 990법, 징검다리법 완벽 지원." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="PSAT Vitamin" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#fcfaf7" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%232563eb%22/><text x=%2250%%22 y=%2255%%22 dominant-baseline=%22central%22 text-anchor=%22middle%22 font-size=%2260%22>⚡</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700;800&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Global App Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="logo-badge">⚡ VITAMIN</div>
+        <div class="brand-text">
+          <h1>PSAT <span>Vitamin Lab</span></h1>
+          <p class="subtitle">5급 자료해석 스피드 연산 트레이너</p>
+        </div>
+      </div>
+
+      <!-- App Navigation Tabs -->
+      <nav class="app-nav">
+        <button class="nav-tab active" id="tabNavPractice">⚡ 비타민 훈련</button>
+        <button class="nav-tab" id="tabNavHistory">📈 회차별 기록실</button>
+      </nav>
+
+      <!-- Live Global Stats: Today's Active Time -->
+      <div class="header-widgets">
+        <div class="widget-card today-time-card" id="todayTimeWidget" title="오늘 사이트에서 실제 연산 학습을 진행한 누적 시간입니다.">
+          <div class="widget-icon">⏱️</div>
+          <div class="widget-info">
+            <span class="widget-label">오늘 학습 시간</span>
+            <span class="widget-value font-mono" id="todayStudyTimeDisplay">00:00:00</span>
+          </div>
+        </div>
+
+        <div class="widget-card today-solved-card" title="오늘 푼 총 문제 수">
+          <div class="widget-icon">🎯</div>
+          <div class="widget-info">
+            <span class="widget-label">오늘 푼 문항</span>
+            <span class="widget-value font-mono"><strong id="todaySolvedDisplay">0</strong>개</span>
+          </div>
+        </div>
+
+          <!-- Theme Switcher Pill -->
+          <div class="theme-switcher-pill" id="themeSwitcher">
+            <button class="theme-pill-btn active" id="btnThemeBeige" data-theme="beige" title="차분하고 눈이 편한 웜 베이지 페이퍼 테마">☕ 웜 베이지</button>
+            <button class="theme-pill-btn" id="btnThemeDark" data-theme="dark" title="몰입감 높은 옵시디언 다크 테마">🌙 다크 모드</button>
+          </div>
+          <button id="btnSoundToggle" class="btn-icon" title="효과음 켜기/끄기 (단축키: M)" aria-label="사운드 토글">
+            <span id="soundIcon">🔊</span>
+          </button>
+          <button id="btnStatsModal" class="btn-secondary" title="누적 학습 통계 및 오답노트">
+            📊 통계 & 오답노트
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-container">
+
+    <!-- VIEW 1: LOBBY (Mode Selection & Configuration) -->
+    <section id="lobbyView" class="view-section active">
+      <!-- Mode Selection Tabs -->
+      <div class="category-selector-wrapper">
+        <div class="section-title-bar">
+          <h2>훈련할 연산 영역을 선택하세요</h2>
+          <span class="badge">맞춤형 실전 커리큘럼</span>
+        </div>
+
+        <div class="modes-grid" id="modesGrid">
+          <!-- 1. 덧셈 -->
+          <div class="mode-card active" data-mode="add">
+            <div class="mode-icon">➕</div>
+            <div class="mode-content">
+              <h3>덧셈 훈련</h3>
+              <p>2자리+2자리, 4자리+4자리, 2자리 연속 합산</p>
+            </div>
+            <div class="mode-subtags">
+              <span>2자리+2자리</span>
+              <span>4자리+4자리</span>
+              <span>2자리 연속 3~4개</span>
+            </div>
+          </div>
+
+          <!-- 2. 뺄셈 -->
+          <div class="mode-card" data-mode="sub">
+            <div class="mode-icon">➖</div>
+            <div class="mode-content">
+              <h3>뺄셈 훈련</h3>
+              <p>2자리-2자리, 4자리-4자리, 990보수법, 징검다리법</p>
+            </div>
+            <div class="mode-subtags">
+              <span>2자리-2자리</span>
+              <span>4자리-4자리</span>
+              <span>990법</span>
+              <span>징검다리법</span>
+            </div>
+          </div>
+
+          <!-- 3. 곱셈 -->
+          <div class="mode-card" data-mode="mul">
+            <div class="mode-icon">✖️</div>
+            <div class="mode-content">
+              <h3>곱셈 훈련</h3>
+              <p>2×2, 자릿수×1자리, 합10, 11단, 10·20대 곱셈</p>
+            </div>
+            <div class="mode-subtags">
+              <span>2×2자리</span>
+              <span>자릿수×1자리</span>
+              <span>합10 특수곱셈</span>
+              <span>11단</span>
+              <span>10대·20대 곱셈</span>
+            </div>
+          </div>
+
+          <!-- 4. 분수 비교 -->
+          <div class="mode-card" data-mode="frac">
+            <div class="mode-icon">⚖️</div>
+            <div class="mode-content">
+              <h3>분수 대소비교</h3>
+              <p>A/B vs C/D 자릿수 증가율, 차분법(차이분수) 실전</p>
+            </div>
+            <div class="mode-subtags">
+              <span>일반 분수비교</span>
+              <span>차분법 실전(1~3%)</span>
+              <span>방향키 판정</span>
+            </div>
+          </div>
+
+          <!-- 5. 곱셈 비교 -->
+          <div class="mode-card" data-mode="mulcomp">
+            <div class="mode-icon">🔄</div>
+            <div class="mode-content">
+              <h3>곱셈 대소비교</h3>
+              <p>A×B vs C×D 증감률 상쇄 및 실전 대소 판단</p>
+            </div>
+            <div class="mode-subtags">
+              <span>자료해석 선지형</span>
+              <span>상쇄 비교</span>
+              <span>방향키 판정</span>
+            </div>
+          </div>
+
+          <!-- 6. 종합 비타민 -->
+          <div class="mode-card special-card" data-mode="mixed">
+            <div class="mode-icon">💊</div>
+            <div class="mode-content">
+              <h3>종합 비타민 모드</h3>
+              <p>덧셈·뺄셈·곱셈·분수비교·곱셈비교 무작위 출제</p>
+            </div>
+            <div class="mode-subtags">
+              <span>전과목 실전 모의</span>
+              <span>무작위 스피드런</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sub-options & Settings Card -->
+      <div class="settings-panel card">
+        <div class="settings-header">
+          <h3 id="currentModeTitle">덧셈 훈련 상세 설정</h3>
+          <span class="settings-subtitle">맞춤 난이도와 세부 유형을 설정하세요</span>
+        </div>
+
+        <div class="settings-grid">
+          <!-- 1. Sub-type selector (Dynamic based on selected mode) -->
+          <div class="setting-group" id="subTypeGroup">
+            <div class="setting-label-row">
+              <label class="setting-label">
+                세부 연산 유형
+                <span class="setting-label-hint">(복수 선택 가능)</span>
+              </label>
+              <div class="subtype-quick-actions">
+                <button type="button" class="btn-mini-action" id="btnSelectAllSubs" title="현재 영역의 모든 유형 선택">전체 선택</button>
+                <button type="button" class="btn-mini-action" id="btnResetSubs" title="첫 번째 유형만 선택">기본 선택</button>
+              </div>
+            </div>
+            <div class="btn-segmented" id="subTypeOptions">
+              <!-- Dynamically populated with multi-select buttons -->
+            </div>
+          </div>
+
+          <!-- 2. Question Count & Distribution Mode -->
+          <div class="setting-group" id="questionCountGroup">
+            <div class="setting-label-row">
+              <label class="setting-label">문항 수 및 배분 방식</label>
+              <div class="dist-mode-tabs" role="tablist">
+                <button type="button" class="dist-mode-btn active" id="distModeEqual" data-dist="equal" title="총 문항 수를 선택된 유형에 균등하게 분배합니다">
+                  ⚡ 균등 자동 분배
+                </button>
+                <button type="button" class="dist-mode-btn" id="distModeCustom" data-dist="custom" title="유형별로 원하는 문항 수를 직접 지정합니다">
+                  🎛️ 유형별 직접 지정
+                </button>
+              </div>
+            </div>
+
+            <!-- 2-A. Equal Distribution Presets -->
+            <div id="equalCountSection">
+              <div class="btn-segmented" id="countOptions">
+                <button class="btn-segment" data-count="10">10문항</button>
+                <button class="btn-segment active" data-count="20">20문항 (추천)</button>
+                <button class="btn-segment" data-count="30">30문항</button>
+                <button class="btn-segment" data-count="999">무제한 (Endless)</button>
+              </div>
+              <div class="distribution-summary-banner" id="distSummaryBanner">
+                <span class="dist-summary-icon">ℹ️</span>
+                <span id="distSummaryText">선택된 유형들에 문항이 균등하게 자동 분배되어 출제됩니다.</span>
+              </div>
+            </div>
+
+            <!-- 2-B. Custom Subtype Count Steppers -->
+            <div id="customCountSection" class="custom-count-panel hidden">
+              <div class="custom-sub-list" id="customSubList">
+                <!-- Dynamically populated with steppers for each selected subtype -->
+              </div>
+              <div class="custom-total-bar">
+                <span>총 구성 문항: <strong id="customTotalCountDisplay" class="custom-total-num">20</strong>문항</span>
+                <div class="quick-step-btns">
+                  <button type="button" class="btn-mini-step" id="btnQuickPlus5">+5문항</button>
+                  <button type="button" class="btn-mini-step" id="btnQuickPlus10">+10문항</button>
+                  <button type="button" class="btn-mini-step" id="btnQuickSet20">20문항 균등</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Difficulty Level -->
+          <div class="setting-group">
+            <label class="setting-label">난이도</label>
+            <div class="btn-segmented" id="diffOptions">
+              <button class="btn-segment" data-diff="easy">기초 (Level 1)</button>
+              <button class="btn-segment active" data-diff="normal">실전 (Level 2)</button>
+              <button class="btn-segment" data-diff="hard">고난도 (Level 3)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Start Button -->
+        <div class="start-action-bar">
+          <div class="shortcut-tip">
+            <span>💡 <strong>단축키</strong>: 숫자패드 엔터 또는 스페이스바를 누르면 시작합니다</span>
+          </div>
+          <button id="btnStartDrill" class="btn-primary btn-large pulse-glow">
+            🚀 훈련 시작하기 (Enter)
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Method Guide Card -->
+      <div class="method-guide-accordion card" id="methodGuideCard">
+        <div class="guide-header" id="guideHeaderToggle">
+          <span class="guide-title">📚 PSAT 자료해석 스피드 계산 비법 요약 (990법 / 징검다리법 / 합10 곱셈 / 11단·10·20대 곱셈 / 차분법)</span>
+          <span class="accordion-arrow">▼</span>
+        </div>
+        <div class="guide-content" id="guideContent">
+          <div class="guide-grid">
+            <div class="guide-item">
+              <h4>1. 990 뺄셈법 (보수법)</h4>
+              <p>기준수(1,000 등)에서 뺄 때 앞자리는 합이 9, 마지막 1의 자리는 합이 10이 되도록 채우는 연산법. 예: <code>1000 - 374 = (9-3)(9-7)(10-4) = 626</code></p>
+            </div>
+            <div class="guide-item">
+              <h4>2. 징검다리 뺄셈법</h4>
+              <p>기준수(100/1000단위)를 징검다리 삼아 차이를 더하는 법. 예: <code>523 - 278 → (278+22=300) + (300+223=523) = 22 + 223 = 245</code></p>
+            </div>
+            <div class="guide-item">
+              <h4>3. 십의자리 동일 & 일의자리 합 10 곱셈</h4>
+              <p>앞 십의자리 x (십의자리 + 1) 뒤에 일의자리 곱을 붙임. 예: <code>43 × 47 → (4×5=20) & (3×7=21) → 2021</code></p>
+            </div>
+            <div class="guide-item">
+              <h4>4. 11단 & 10대·20대 특수 곱셈 비법</h4>
+              <p><strong>11단</strong>: 양끝 수 배치 후 가운데 합 삽입. <code>11 × 45 → 495</code><br/><strong>10대 곱셈 (10~19)</strong>: (A + B일의자리)×10 + 일의자리곱. 예: <code>15 × 19 → (15+9)×10 + 45 = 285</code><br/><strong>20대 곱셈 (20~29)</strong>: (A + B일의자리)×20 + 일의자리곱. 예: <code>24 × 27 → (24+7)×20 + 28 = 648</code></p>
+            </div>
+            <div class="guide-item">
+              <h4>5. 분수비교 차분법 (Difference Method)</h4>
+              <p>분모·분자 차이로 만든 '차이분수'와 원래 작은 분수를 비교하여 대소 판정. 5급 공채 1~3% 초미세 선지 판별 필수 스킬!</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 2: DRILL ARENA (Active Practice) -->
+    <section id="drillView" class="view-section">
+      <!-- Drill Header Bar -->
+      <div class="drill-status-bar card">
+        <div class="status-left">
+          <button id="btnExitDrill" class="btn-ghost" title="연습 중단하고 로비로 이동">← 중단</button>
+          <button id="btnPauseDrill" class="btn-ghost" title="잠시 시간 멈추기 (단축키: Space/P)">⏸️ 일시정지</button>
+          <div class="drill-meta">
+            <span id="drillModeBadge" class="badge badge-accent">덧셈 훈련</span>
+            <span id="drillSubBadge" class="badge badge-outline">2자리+2자리</span>
+          </div>
+        </div>
+
+        <!-- Progress Indicator -->
+        <div class="status-center">
+          <div class="progress-info">
+            <span>문항 <strong id="currentQNum">1</strong> / <span id="totalQNum">20</span></span>
+            <span class="accuracy-indicator">정답률 <strong id="liveAccuracy">100%</strong></span>
+          </div>
+          <div class="progress-bar-bg">
+            <div id="drillProgressBar" class="progress-bar-fill" style="width: 5%;"></div>
+          </div>
+        </div>
+
+        <!-- Live Stopwatch -->
+        <div class="status-right">
+          <div class="timer-box font-mono" id="questionTimerDisplay" title="현재 문항 풀이 시간">
+            <span class="timer-label">문항 시간</span>
+            <span class="timer-sec" id="currentSec">0.00</span>s
+          </div>
+          <div class="timer-box font-mono total-timer" id="totalTimerDisplay" title="세트 전체 진행 시간">
+            <span class="timer-label">총 시간</span>
+            <span class="timer-sec" id="totalSec">00:00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Problem Card Container -->
+      <div class="problem-stage">
+        <div class="problem-card card" id="problemCard">
+          
+          <!-- Method Tip Banner (Shown conditionally for 990법, 징검다리법, 합10법) -->
+          <div id="methodTipBanner" class="method-tip-banner hidden">
+            <span class="tip-icon">💡</span>
+            <span id="tipText">팁: 징검다리 300을 거쳐 계산해보세요!</span>
+          </div>
+
+          <!-- Problem Expression Area -->
+          <div class="expression-area" id="expressionArea">
+            <!-- Dynamic Problem Content Rendered by JS -->
+          </div>
+
+          <!-- Input Area: NUMERIC MODE (+, -, *) -->
+          <div class="input-area" id="numericInputArea">
+            <div class="numeric-input-wrapper">
+              <input type="text" id="answerInput" class="font-mono" inputmode="numeric" placeholder="정답 입력 후 Enter" autocomplete="off" />
+              <button id="btnSubmitAnswer" class="btn-primary">확인</button>
+            </div>
+            <div class="input-hint">
+              <span>키보드 숫자패드 입력 후 <strong>Enter</strong> 키를 누르세요.</span>
+            </div>
+
+            <!-- Virtual On-screen Numpad for Tablet/Mobile -->
+            <div class="virtual-numpad" id="virtualNumpad">
+              <button class="np-key" data-key="1">1</button>
+              <button class="np-key" data-key="2">2</button>
+              <button class="np-key" data-key="3">3</button>
+              <button class="np-key" data-key="4">4</button>
+              <button class="np-key" data-key="5">5</button>
+              <button class="np-key" data-key="6">6</button>
+              <button class="np-key" data-key="7">7</button>
+              <button class="np-key" data-key="8">8</button>
+              <button class="np-key" data-key="9">9</button>
+              <button class="np-key np-clear" data-key="clear">C</button>
+              <button class="np-key" data-key="0">0</button>
+              <button class="np-key np-enter" data-key="enter">Enter ↵</button>
+            </div>
+          </div>
+
+          <!-- Input Area: COMPARISON MODE (Fraction & Multiplication) -->
+          <div class="input-area comparison-input-area hidden" id="comparisonInputArea">
+            <div class="comparison-buttons">
+              <button id="btnChoiceLeft" class="comp-card-btn" data-choice="left">
+                <div class="comp-badge">A 선택</div>
+                <div class="comp-label font-mono">A 가 더 크다 [ &gt; ]</div>
+                <div class="comp-shortcut font-mono">단축키: ← 또는 A 키</div>
+              </button>
+
+              <div class="comp-divider">VS</div>
+
+              <button id="btnChoiceRight" class="comp-card-btn" data-choice="right">
+                <div class="comp-badge">B 선택</div>
+                <div class="comp-label font-mono">B 가 더 크다 [ &lt; ]</div>
+                <div class="comp-shortcut font-mono">단축키: → 또는 B 키</div>
+              </button>
+            </div>
+            <div class="input-hint">
+              <span>키보드 방향키 <strong>[ ← 왼쪽(A) / 오른쪽(B) → ]</strong> 또는 <strong>[ A / B ]</strong> 키를 누르면 즉시 판정됩니다.</span>
+            </div>
+          </div>
+
+          <!-- Feedback Flash Overlay (Correct/Wrong Animation) -->
+          <div id="feedbackOverlay" class="feedback-overlay">
+            <div id="feedbackIcon" class="feedback-icon">✓</div>
+            <div id="feedbackText" class="feedback-text">0.82초</div>
+          </div>
+
+          <!-- Pause Overlay -->
+          <div id="pauseOverlay" class="pause-overlay hidden">
+            <div class="pause-box card">
+              <div class="pause-icon">⏸️</div>
+              <h3>훈련 일시 정지</h3>
+              <p>타이머가 일시 정지되었습니다. 숨을 고르고 준비되면 계속하세요.</p>
+              <button id="btnResumeDrill" class="btn-primary btn-large">▶️ 계속하기 (Space 또는 클릭)</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: SCORECARD (Session Result) -->
+    <section id="resultView" class="view-section">
+      <div class="result-card card">
+        <div class="result-header">
+          <div class="result-trophy" id="resultTrophy">🏆</div>
+          <h2 id="resultTitle">연산 세트 완료!</h2>
+          <p id="resultSubtitle">오늘의 자료해석 계산 실력이 한 단계 상승했습니다.</p>
+        </div>
+
+        <div class="score-summary-grid">
+          <div class="summary-metric">
+            <span class="metric-label">정답률</span>
+            <span class="metric-val text-accent font-mono" id="resAccuracy">95%</span>
+            <span class="metric-sub" id="resCorrectCount">19 / 20 문항</span>
+          </div>
+
+          <div class="summary-metric">
+            <span class="metric-label">문항당 평균 속도</span>
+            <span class="metric-val text-warning font-mono" id="resAvgSpeed">2.41<span class="unit">초</span></span>
+            <span class="metric-sub">자료해석 합격권: 3초 이내</span>
+          </div>
+
+          <div class="summary-metric">
+            <span class="metric-label">총 소요 시간</span>
+            <span class="metric-val font-mono" id="resTotalTime">00:48</span>
+            <span class="metric-sub">최고속도: <strong id="resFastest">1.12초</strong></span>
+          </div>
+        </div>
+
+        <!-- Session-by-Session Performance Comparison Line Chart -->
+        <div class="chart-card card">
+          <div class="chart-header">
+            <h3>📈 회차별 총 소요시간 변화 추이 (이전 기록과 비교)</h3>
+            <span class="chart-badge font-mono" id="chartSessionDeltaBadge">실력 향상 분석</span>
+          </div>
+          <div class="canvas-wrapper">
+            <canvas id="sessionComparisonChart" width="720" height="200"></canvas>
+          </div>
+          <div class="chart-legend">
+            <span><strong style="color: var(--accent-secondary);">●</strong> 각 회차별 총 소요시간 (초)</span>
+            <span><strong style="color: var(--accent-warning);">---</strong> 평균 총 소요시간</span>
+          </div>
+        </div>
+
+        <!-- Problem Review List -->
+        <div class="review-section">
+          <div class="review-header">
+            <h3>문항별 상세 풀이 기록</h3>
+            <div class="review-filters">
+              <button class="btn-filter active" data-filter="all">전체 (<span id="countAllFilter">20</span>)</button>
+              <button class="btn-filter" data-filter="wrong">오답만 (<span id="countWrongFilter">1</span>)</button>
+            </div>
+          </div>
+          <div class="review-list font-mono" id="reviewList">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Result Action Bar -->
+        <div class="result-actions">
+          <button id="btnRetryWrong" class="btn-warning btn-large hidden">
+            🔁 틀린 문제만 다시 풀기
+          </button>
+          <button id="btnRestartDrill" class="btn-primary btn-large">
+            ⚡ 같은 설정으로 다시 풀기 (Enter)
+          </button>
+          <button id="btnGoToHistory" class="btn-secondary">
+            📈 회차별 기록실 가기
+          </button>
+          <button id="btnBackToLobby" class="btn-secondary">
+            🏠 메뉴로 이동
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 4: HISTORY & SESSION COMPARISON RECORDS (회차별 기록실) -->
+    <section id="historyView" class="view-section">
+      <div class="history-card card">
+        <div class="history-header">
+          <div>
+            <h2>📈 회차별 풀이 기록 및 소요시간 비교</h2>
+            <p class="history-subtitle">동일 문항 수(예: 20문항) 및 훈련 영역별로 회차가 거듭되며 소요 시간이 단축되는 추세를 확인하세요.</p>
+          </div>
+          <button id="btnClearAllHistory" class="btn-ghost text-danger">기록 초기화</button>
+        </div>
+
+        <!-- Filters -->
+        <div class="history-filter-bar">
+          <div class="filter-group">
+            <span class="filter-label">연산 영역:</span>
+            <div class="btn-segmented" id="historyCatFilter">
+              <button class="btn-segment active" data-cat="all">전체</button>
+              <button class="btn-segment" data-cat="add">덧셈</button>
+              <button class="btn-segment" data-cat="sub">뺄셈</button>
+              <button class="btn-segment" data-cat="mul">곱셈</button>
+              <button class="btn-segment" data-cat="frac">분수비교</button>
+              <button class="btn-segment" data-cat="mulcomp">곱셈비교</button>
+              <button class="btn-segment" data-cat="mixed">종합</button>
+            </div>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">문항 수:</span>
+            <div class="btn-segmented" id="historyCountFilter">
+              <button class="btn-segment active" data-cnt="all">전체</button>
+              <button class="btn-segment" data-cnt="10">10문항</button>
+              <button class="btn-segment" data-cnt="20">20문항</button>
+              <button class="btn-segment" data-cnt="30">30문항</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main History Line Chart -->
+        <div class="chart-card card" style="margin-top: 18px;">
+          <div class="chart-header">
+            <h3 id="historyMainChartTitle">📈 회차별 총 소요시간 변화 그래프 (초)</h3>
+            <span class="chart-badge font-mono" id="historyMainStatBadge">총 0회차 기록</span>
+          </div>
+          <div class="canvas-wrapper">
+            <canvas id="historyMainChart" width="800" height="240"></canvas>
+          </div>
+          <div class="chart-legend">
+            <span><strong style="color: var(--accent-secondary);">●</strong> 회차별 총 소요시간 (초)</span>
+            <span><strong style="color: var(--accent-warning);">---</strong> 평균 소요시간</span>
+          </div>
+        </div>
+
+        <!-- History Records Table -->
+        <div class="history-table-wrapper">
+          <div class="table-responsive">
+            <table class="stats-table">
+              <thead>
+                <tr>
+                  <th>회차</th>
+                  <th>일시</th>
+                  <th>연산 영역</th>
+                  <th>문항 수</th>
+                  <th>총 소요시간</th>
+                  <th>문항당 속도</th>
+                  <th>정답률</th>
+                </tr>
+              </thead>
+              <tbody id="historyTableBody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+          <div id="historyEmptyMsg" class="empty-msg hidden">선택한 조건의 풀이 기록이 없습니다. 문제를 풀고 기록을 쌓아보세요!</div>
+        </div>
+
+        <div class="history-actions" style="margin-top: 20px; text-align: center;">
+          <button id="btnHistoryToDrill" class="btn-primary btn-large">
+            ⚡ 비타민 연산 훈련하러 가기
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: STATS DASHBOARD & WRONG ANSWER NOTE -->
+  <div class="modal-backdrop hidden" id="statsModal">
+    <div class="modal-dialog card">
+      <div class="modal-header">
+        <h2>📊 나의 비타민 연산 누적 대시보드</h2>
+        <button id="btnCloseModal" class="btn-icon">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Cumulative Stats Cards -->
+        <div class="stats-overview-grid">
+          <div class="overview-item">
+            <span class="item-label">오늘 총 학습 시간</span>
+            <span class="item-val font-mono" id="modalTodayTime">00:00:00</span>
+          </div>
+          <div class="overview-item">
+            <span class="item-label">누적 푼 총 문항</span>
+            <span class="item-val font-mono" id="modalTotalSolved">0문항</span>
+          </div>
+          <div class="overview-item">
+            <span class="item-label">전체 평균 정답률</span>
+            <span class="item-val font-mono" id="modalOverallAcc">0%</span>
+          </div>
+          <div class="overview-item">
+            <span class="item-label">전체 평균 풀이속도</span>
+            <span class="item-val font-mono" id="modalOverallSpeed">0.00초</span>
+          </div>
+        </div>
+
+        <!-- By-Category Stats Table -->
+        <div class="category-breakdown">
+          <h3>연산 유형별 속도 및 정답률</h3>
+          <div class="table-responsive">
+            <table class="stats-table">
+              <thead>
+                <tr>
+                  <th>연산 영역</th>
+                  <th>해결 문항수</th>
+                  <th>평균 속도</th>
+                  <th>정답률</th>
+                  <th>숙련도</th>
+                </tr>
+              </thead>
+              <tbody id="statsTableBody">
+                <!-- Dynamically filled -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Cumulative Speed Trend Line Chart (최근 세션별 실력 향상 추세선) -->
+        <div class="chart-card card">
+          <div class="chart-header">
+            <h3>📈 최근 세션별 평균 풀이속도 변화 (실력 향상 추세)</h3>
+            <span class="chart-badge">학습 누적 트렌드</span>
+          </div>
+          <div class="canvas-wrapper">
+            <canvas id="historyTrendChart" width="660" height="180"></canvas>
+          </div>
+          <div class="chart-legend">
+            <span><strong style="color: var(--accent-secondary);">●</strong> 세션별 평균 소요시간</span>
+            <span><strong style="color: var(--accent-success);">---</strong> 5급 합격 목표선 (3.0초)</span>
+          </div>
+        </div>
+
+        <!-- Wrong Answer Vault (오답 보관함) -->
+        <div class="wrong-vault-section">
+          <div class="vault-header">
+            <h3>📕 누적 오답 보관함 (<span id="vaultCount">0</span>문항)</h3>
+            <button id="btnClearVault" class="btn-ghost btn-sm text-danger">보관함 비우기</button>
+          </div>
+          <div class="vault-list font-mono" id="vaultList">
+            <p class="empty-msg">아직 오답이 없습니다. 훌륭합니다!</p>
+          </div>
+          <button id="btnSolveVault" class="btn-warning btn-block hidden" style="margin-top: 12px;">
+            🔥 보관된 오답 전체 다시 풀기
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
