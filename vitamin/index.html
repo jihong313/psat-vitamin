@@ -246,6 +246,7 @@
               <button class="btn-segment" data-diff="easy">기초 (Level 1)</button>
               <button class="btn-segment active" data-diff="normal">실전 (Level 2)</button>
               <button class="btn-segment" data-diff="hard">고난도 (Level 3)</button>
+              <button class="btn-segment" data-diff="mixed">🎲 난이도 섞기 (혼합)</button>
             </div>
           </div>
         </div>
@@ -304,6 +305,7 @@
           <div class="drill-meta">
             <span id="drillModeBadge" class="badge badge-accent">덧셈 훈련</span>
             <span id="drillSubBadge" class="badge badge-outline">2자리+2자리</span>
+            <span id="drillDiffBadge" class="badge badge-diff-normal">실전</span>
           </div>
         </div>
 
@@ -523,6 +525,12 @@
               <button class="btn-segment" data-cnt="10">10문항</button>
               <button class="btn-segment" data-cnt="20">20문항</button>
               <button class="btn-segment" data-cnt="30">30문항</button>
+            </div>
+          </div>
+          <div class="filter-group hidden" id="historySubFilterGroup">
+            <span class="filter-label">세부 유형:</span>
+            <div class="btn-segmented" id="historySubFilter">
+              <button class="btn-segment active" data-sub="all">전체 세부유형</button>
             </div>
           </div>
         </div>

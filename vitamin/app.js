@@ -194,7 +194,7 @@ class StatsManager {
     };
   }
 
-  recordSession(category, subType, questions) {
+  recordSession(category, subType, questions, difficulty = 'normal', subTypes = []) {
     const stats = this.getStats();
     let sessionSolved = questions.length;
     let sessionCorrect = questions.filter(q => q.isCorrect).length;
@@ -217,15 +217,30 @@ class StatsManager {
 
     // Save session history for session-by-session comparison
     const history = this.getSessionHistory();
+    const breakdown = {};
+    questions.forEach(q => {
+      const k = q.subType || 'default';
+      if (!breakdown[k]) breakdown[k] = { total: 0, correct: 0, timeSec: 0, diffMap: {} };
+      breakdown[k].total += 1;
+      if (q.isCorrect) breakdown[k].correct += 1;
+      breakdown[k].timeSec += (q.timeTaken || 0);
+
+      const d = q.difficulty || difficulty;
+      breakdown[k].diffMap[d] = (breakdown[k].diffMap[d] || 0) + 1;
+    });
+
     const historyItem = {
       id: Date.now(),
       date: new Date().toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       category: category,
       subType: subType,
+      subTypes: subTypes.length > 0 ? subTypes : [subType],
+      difficulty: difficulty,
       count: sessionSolved,
       totalTimeSec: totalTimeSec,
       avgSpeed: avgSpeed,
-      accuracy: Math.round((sessionCorrect / sessionSolved) * 100)
+      accuracy: Math.round((sessionCorrect / sessionSolved) * 100),
+      breakdown: breakdown
     };
     history.push(historyItem);
     if (history.length > 50) history.shift();
@@ -639,12 +654,15 @@ class ProblemGenerator {
   // -------------------------------------------------------------
   static genFractionComp(subType, difficulty) {
     let n1, d1, n2, d2;
+    // 50% chance to generate improper fraction (가분수: numerator > denominator)
+    const isImproper = subType === 'frac_improper' ? true : (subType === 'frac_proper' ? false : Math.random() < 0.5);
 
     if (difficulty === 'hard') {
       // 1~3% ultra-fine difference (Difference method / 차분법)
       d1 = this.randInt(300, 850);
-      n1 = Math.round(d1 * (this.randInt(25, 75) / 100));
-      // delta
+      const ratio = isImproper ? (this.randInt(115, 230) / 100) : (this.randInt(25, 75) / 100);
+      n1 = Math.round(d1 * ratio);
+      
       const diffPercent = (this.randInt(1, 3) / 100) * (Math.random() < 0.5 ? 1 : -1);
       d2 = Math.round(d1 * (1 + this.randInt(10, 40) / 100));
       const val1 = n1 / d1;
@@ -653,16 +671,18 @@ class ProblemGenerator {
     } else if (difficulty === 'normal') {
       // 3-digit fraction, 5~12% difference
       d1 = this.randInt(150, 700);
-      n1 = Math.round(d1 * (this.randInt(25, 80) / 100));
+      const ratio = isImproper ? (this.randInt(110, 210) / 100) : (this.randInt(25, 80) / 100);
+      n1 = Math.round(d1 * ratio);
+      
       d2 = Math.round(d1 * (1 + this.randInt(15, 50) / 100));
       const diff = (this.randInt(5, 12) / 100) * (Math.random() < 0.5 ? 1 : -1);
       n2 = Math.round(d2 * ((n1 / d1) * (1 + diff)));
     } else {
       // Easy: 2-digit or obvious 15~30% difference
       d1 = this.randInt(30, 95);
-      n1 = this.randInt(10, d1 - 5);
+      n1 = isImproper ? this.randInt(d1 + 10, d1 * 2) : this.randInt(10, d1 - 5);
       d2 = this.randInt(30, 95);
-      n2 = this.randInt(10, d2 - 5);
+      n2 = isImproper ? this.randInt(d2 + 10, d2 * 2) : this.randInt(10, d2 - 5);
     }
 
     // Ensure they are not strictly equal
@@ -697,6 +717,10 @@ class ProblemGenerator {
       </div>
     `;
 
+    const tip = isImproper 
+      ? `가분수 몫 분리법: 자연수 1(또는 2)을 먼저 분리하고 잔여 진분수(${n1 % d1}/${d1} vs ${n2 % d2}/${d2})를 비교해보세요!`
+      : "분모와 분자의 증가율을 비교하거나 차분법(차이분수)을 적용해보세요!";
+
     return {
       type: 'comparison',
       category: 'frac',
@@ -704,40 +728,166 @@ class ProblemGenerator {
       displayHtml: displayHtml,
       rawExpression: `${n1}/${d1} vs ${n2}/${d2}`,
       correctAnswer: correctAnswer,
-      tip: "분모와 분자의 증가율을 비교하거나 차분법(차이분수)을 적용해보세요!"
+      tip: tip
     };
   }
 
   // -------------------------------------------------------------
   // 5. MULTIPLICATION COMPARISON (A x B vs C x D)
+  // Reference: Vitamin+Multiplication.pdf
+  // Format: [4-digit Integer] × [1-decimal Place] vs [4-digit Integer] × [1-decimal Place]
+  // e.g. 7844 × 33.2 vs 4100 × 55.5
   // -------------------------------------------------------------
   static genMulComp(subType, difficulty) {
-    const a = this.randInt(25, 95);
-    const b = this.randInt(25, 95);
+    if (subType === 'mulcomp_2x2') {
+      const a = this.randInt(25, 95);
+      const b = this.randInt(25, 95);
 
-    // Make second product close to first product (trade-off)
-    const ratio = 1 + (this.randInt(10, 30) / 100);
-    const c = Math.round(a * ratio);
-    const diffPct = (this.randInt(2, 10) / 100) * (Math.random() < 0.5 ? 1 : -1);
-    const targetProduct = (a * b) * (1 + diffPct);
-    const d = Math.round(targetProduct / c);
+      const isLeftBigger = Math.random() < 0.5;
+      const ratio = 1 + (this.randInt(15, 45) / 100);
+      const c = Math.max(20, Math.min(99, Math.round(isLeftBigger ? a / ratio : a * ratio)));
+      
+      const gap = (difficulty === 'hard' ? this.randInt(3, 8) : difficulty === 'easy' ? this.randInt(15, 30) : this.randInt(8, 18)) / 100;
+      const targetDiff = isLeftBigger ? gap : -gap;
+      const targetProduct = (a * b) / (1 + targetDiff);
+      let d = Math.max(20, Math.min(99, Math.round(targetProduct / c)));
+      
+      let prod1 = a * b;
+      let prod2 = c * d;
+      if (prod1 === prod2) {
+        d = isLeftBigger ? d - 1 : d + 1;
+        prod2 = c * d;
+      }
+      const actualLeftBigger = prod1 > prod2;
+      const correctAnswer = actualLeftBigger ? 'left' : 'right';
 
-    const prod1 = a * b;
-    const prod2 = c * d;
-    const isLeftBigger = prod1 > prod2;
-    const correctAnswer = isLeftBigger ? 'left' : 'right';
+      const displayHtml = `
+        <div class="comparison-container">
+          <div class="comp-item-card clickable-comp-card" data-choice="left" title="클릭하거나 키보드 ← 또는 A 키">
+            <span class="comp-tag">값 A</span>
+            <div class="mult-box">${a} × ${b}</div>
+            <div class="card-action-badge">A 선택 (← 또는 A)</div>
+          </div>
+          <div class="comp-vs-pill">VS</div>
+          <div class="comp-item-card clickable-comp-card" data-choice="right" title="클릭하거나 키보드 → 또는 B 키">
+            <span class="comp-tag">값 B</span>
+            <div class="mult-box">${c} × ${d}</div>
+            <div class="card-action-badge">B 선택 (→ 또는 B)</div>
+          </div>
+        </div>
+      `;
+
+      return {
+        type: 'comparison',
+        category: 'mulcomp',
+        subType: 'mulcomp_2x2',
+        displayHtml: displayHtml,
+        rawExpression: `(${a}×${b}) vs (${c}×${d})`,
+        correctAnswer: correctAnswer,
+        tip: `2자리 상쇄 비교: ${a}×${b}=${prod1} vs ${c}×${d}=${prod2} ⇒ ${actualLeftBigger ? '값 A' : '값 B'} 승리!`
+      };
+    }
+
+    // =========================================================================
+    // VITAMIN PDF ORIGINAL FORMAT: 4-digit Integer × 1-decimal float
+    // e.g. 7844 × 33.2 vs 4100 × 55.5 (Strict Trade-off Comparison)
+    // =========================================================================
+    const a = this.randInt(1100, 9890);
+    // 1-decimal float between 11.0 and 98.0
+    const b = Number((this.randInt(110, 980) / 10).toFixed(1));
+
+    const isALarger = Math.random() < 0.5;
+    // Integer growth ratio: 15% ~ 95%
+    const intGrowth = (this.randInt(15, 95) / 100);
+
+    let c;
+    let actualIntGrowth;
+    let d;
+
+    // Difficulty gap for trade-off evaluation
+    const gap = (difficulty === 'hard' ? this.randInt(3, 9) : difficulty === 'easy' ? this.randInt(18, 35) : this.randInt(8, 20)) / 100;
+    const leftWins = Math.random() < 0.5;
+
+    if (isALarger) {
+      // A > C: C is base, A = C * (1 + intGrowth) => C = A / (1 + intGrowth)
+      c = Math.max(1050, Math.min(9950, Math.round(a / (1 + intGrowth))));
+      actualIntGrowth = (a - c) / c;
+
+      // Trade-off: D must be greater than B (B < D)
+      let fltGrowth;
+      if (leftWins) {
+        fltGrowth = Math.max(0.05, actualIntGrowth - gap);
+      } else {
+        fltGrowth = actualIntGrowth + gap;
+      }
+      d = Number((b * (1 + fltGrowth)).toFixed(1));
+      if (d <= b) d = Number((b + 1.2).toFixed(1));
+    } else {
+      // A < C: A is base, C = A * (1 + intGrowth)
+      c = Math.max(1050, Math.min(9950, Math.round(a * (1 + intGrowth))));
+      actualIntGrowth = (c - a) / a;
+
+      // Trade-off: B must be greater than D (B > D)
+      let fltGrowth;
+      if (leftWins) {
+        fltGrowth = actualIntGrowth + gap;
+      } else {
+        fltGrowth = Math.max(0.05, actualIntGrowth - gap);
+      }
+      d = Number((b / (1 + fltGrowth)).toFixed(1));
+      if (d < 10.0) d = 10.5;
+      if (d >= b) d = Number(Math.max(10.5, b - 1.2).toFixed(1));
+    }
+
+    let prod1 = Number((a * b).toFixed(2));
+    let prod2 = Number((c * d).toFixed(2));
+
+    if (Math.abs(prod1 - prod2) < 0.05) {
+      d = Number((d + (isALarger ? 0.4 : -0.4)).toFixed(1));
+      prod2 = Number((c * d).toFixed(2));
+    }
+
+    const actualLeftWins = prod1 > prod2;
+    const correctAnswer = actualLeftWins ? 'left' : 'right';
+
+    // Calculate exact growth percentages for Vitamin-style solution tip
+    let intTipStr;
+    if (a >= c) {
+      const p = (((a - c) / c) * 100).toFixed(1);
+      intTipStr = `정수 ${c} → ${a} (+${p}%)`;
+    } else {
+      const p = (((c - a) / a) * 100).toFixed(1);
+      intTipStr = `정수 ${a} → ${c} (+${p}%)`;
+    }
+
+    let fltTipStr;
+    if (b >= d) {
+      const p = (((b - d) / d) * 100).toFixed(1);
+      fltTipStr = `소수 ${d.toFixed(1)} → ${b.toFixed(1)} (+${p}%)`;
+    } else {
+      const p = (((d - b) / b) * 100).toFixed(1);
+      fltTipStr = `소수 ${b.toFixed(1)} → ${d.toFixed(1)} (+${p}%)`;
+    }
+
+    const winnerName = actualLeftWins ? '값 A (좌측)' : '값 B (우측)';
+    const tip = `비타민 증가율 상쇄: ${intTipStr} vs ${fltTipStr} ⇒ ${winnerName} 승리!`;
+
+    const aStr = a.toString();
+    const cStr = c.toString();
+    const bStr = b.toFixed(1);
+    const dStr = d.toFixed(1);
 
     const displayHtml = `
       <div class="comparison-container">
         <div class="comp-item-card clickable-comp-card" data-choice="left" title="클릭하거나 키보드 ← 또는 A 키">
           <span class="comp-tag">값 A</span>
-          <div class="mult-box">${a} × ${b}</div>
+          <div class="mult-box">${aStr} × ${bStr}</div>
           <div class="card-action-badge">A 선택 (← 또는 A)</div>
         </div>
         <div class="comp-vs-pill">VS</div>
         <div class="comp-item-card clickable-comp-card" data-choice="right" title="클릭하거나 키보드 → 또는 B 키">
           <span class="comp-tag">값 B</span>
-          <div class="mult-box">${c} × ${d}</div>
+          <div class="mult-box">${cStr} × ${dStr}</div>
           <div class="card-action-badge">B 선택 (→ 또는 B)</div>
         </div>
       </div>
@@ -748,9 +898,9 @@ class ProblemGenerator {
       category: 'mulcomp',
       subType: subType || 'mulcomp_std',
       displayHtml: displayHtml,
-      rawExpression: `(${a}×${b}) vs (${c}×${d})`,
+      rawExpression: `(${aStr}×${bStr}) vs (${cStr}×${dStr})`,
       correctAnswer: correctAnswer,
-      tip: "한 쪽의 증가율과 다른 쪽의 감소율을 비교해 상쇄 대소를 판정하세요!"
+      tip: tip
     };
   }
 
@@ -758,6 +908,10 @@ class ProblemGenerator {
   // 6. MASTER DISPATCHER
   // -------------------------------------------------------------
   static generate(mode, subType, difficulty) {
+    const actualDiff = (difficulty === 'mixed')
+      ? ['easy', 'normal', 'hard'][this.randInt(0, 2)]
+      : (difficulty || 'normal');
+
     if (mode === 'mixed') {
       const modes = ['add', 'sub', 'mul', 'frac', 'mulcomp'];
       const chosen = modes[this.randInt(0, modes.length - 1)];
@@ -771,24 +925,32 @@ class ProblemGenerator {
       } else if (chosen === 'add') {
         const addSubs = ['add_2x2', 'add_4x4', 'add_chain'];
         chosenSub = addSubs[this.randInt(0, addSubs.length - 1)];
+      } else if (chosen === 'frac') {
+        const fracSubs = ['frac_std', 'frac_improper', 'frac_diff'];
+        chosenSub = fracSubs[this.randInt(0, fracSubs.length - 1)];
       }
-      return this.generate(chosen, chosenSub, difficulty);
+      const q = this.generate(chosen, chosenSub, actualDiff);
+      if (q) q.difficulty = actualDiff;
+      return q;
     }
 
+    let q;
     switch (mode) {
       case 'add':
-        return this.genAddition(subType, difficulty);
+        q = this.genAddition(subType, actualDiff); break;
       case 'sub':
-        return this.genSubtraction(subType, difficulty);
+        q = this.genSubtraction(subType, actualDiff); break;
       case 'mul':
-        return this.genMultiplication(subType, difficulty);
+        q = this.genMultiplication(subType, actualDiff); break;
       case 'frac':
-        return this.genFractionComp(subType, difficulty);
+        q = this.genFractionComp(subType, actualDiff); break;
       case 'mulcomp':
-        return this.genMulComp(subType, difficulty);
+        q = this.genMulComp(subType, actualDiff); break;
       default:
-        return this.genAddition(subType, difficulty);
+        q = this.genAddition(subType, actualDiff); break;
     }
+    if (q) q.difficulty = actualDiff;
+    return q;
   }
 }
 
@@ -846,10 +1008,13 @@ class VitaminApp {
         { id: 'mul_10_20', name: '10·20대 곱셈 (10~29 × 10~29)' }
       ],
       frac: [
-        { id: 'frac_std', name: '표준 분수 대소비교' }
+        { id: 'frac_std', name: '표준 분수 대소비교 (진분수+가분수 혼합)' },
+        { id: 'frac_proper', name: '진분수 대소비교 (분자 < 분모)' },
+        { id: 'frac_improper', name: '가분수 대소비교 (분자 > 분모, 몫분리법)' }
       ],
       mulcomp: [
-        { id: 'mulcomp_std', name: '표준 곱셈 대소비교 (A×B vs C×D)' }
+        { id: 'mulcomp_std', name: '비타민 실전형 (4자리 × 소수 vs 4자리 × 소수)' },
+        { id: 'mulcomp_2x2', name: '기초 2자리형 (2자리 × 2자리 vs 2자리 × 2자리)' }
       ],
       mixed: [
         { id: 'mixed_all', name: '종합 5대 연산 랜덤 출제' }
@@ -878,6 +1043,7 @@ class VitaminApp {
     this.totalSecEl = document.getElementById('totalSec');
     this.drillModeBadge = document.getElementById('drillModeBadge');
     this.drillSubBadge = document.getElementById('drillSubBadge');
+    this.drillDiffBadge = document.getElementById('drillDiffBadge');
 
     this.btnPauseDrill = document.getElementById('btnPauseDrill');
     this.pauseOverlay = document.getElementById('pauseOverlay');
@@ -921,9 +1087,17 @@ class VitaminApp {
     this.historyEmptyMsg = document.getElementById('historyEmptyMsg');
     this.btnClearAllHistory = document.getElementById('btnClearAllHistory');
     this.btnHistoryToDrill = document.getElementById('btnHistoryToDrill');
+    this.historySubFilterGroup = document.getElementById('historySubFilterGroup');
+    this.historySubFilter = document.getElementById('historySubFilter');
 
     this.historyFilterCat = 'all';
     this.historyFilterCount = 'all';
+    this.historyFilterSub = 'all';
+
+    // Tablet touch safety guards
+    this.isSubmitting = false;
+    this.canAcceptInput = true;
+    this.isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
     // Modal
     this.statsModal = document.getElementById('statsModal');
@@ -1152,6 +1326,7 @@ class VitaminApp {
         document.querySelectorAll('#historyCatFilter .btn-segment').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         this.historyFilterCat = btn.dataset.cat;
+        this.historyFilterSub = 'all';
         this.renderHistoryView();
       });
     });
@@ -1427,6 +1602,15 @@ class VitaminApp {
   // -------------------------------------------------------------
   // DRILL ENGINE
   // -------------------------------------------------------------
+  createQuestion(mode, subId) {
+    const diff = this.currentDifficulty === 'mixed'
+      ? ['easy', 'normal', 'hard'][ProblemGenerator.randInt(0, 2)]
+      : this.currentDifficulty;
+    const q = ProblemGenerator.generate(mode, subId, diff);
+    q.difficulty = diff;
+    return q;
+  }
+
   startDrill() {
     this.sound.init();
     this.questions = [];
@@ -1440,7 +1624,7 @@ class VitaminApp {
       selected.forEach(subId => {
         const cnt = Math.max(1, this.customSubTypeCounts[subId] || 5);
         for (let i = 0; i < cnt; i++) {
-          this.questions.push(ProblemGenerator.generate(this.currentMode, subId, this.currentDifficulty));
+          this.questions.push(this.createQuestion(this.currentMode, subId));
         }
       });
       this.shuffleArray(this.questions);
@@ -1451,7 +1635,7 @@ class VitaminApp {
         // Endless mode (initial 100 questions pool, randomly drawn from selected)
         for (let i = 0; i < 100; i++) {
           const chosenSub = selected[ProblemGenerator.randInt(0, selected.length - 1)];
-          this.questions.push(ProblemGenerator.generate(this.currentMode, chosenSub, this.currentDifficulty));
+          this.questions.push(this.createQuestion(this.currentMode, chosenSub));
         }
       } else {
         const base = Math.floor(count / selected.length);
@@ -1459,7 +1643,7 @@ class VitaminApp {
         selected.forEach((subId, idx) => {
           const cnt = base + (idx < remainder ? 1 : 0);
           for (let i = 0; i < cnt; i++) {
-            this.questions.push(ProblemGenerator.generate(this.currentMode, subId, this.currentDifficulty));
+            this.questions.push(this.createQuestion(this.currentMode, subId));
           }
         });
         this.shuffleArray(this.questions);
@@ -1509,9 +1693,20 @@ class VitaminApp {
       return;
     }
 
+    // Safety lock: prevent any touch or key input during question transition
+    this.canAcceptInput = false;
+    this.isSubmitting = false;
+
     this.currentIndex = index;
     this.currentQuestion = this.questions[index];
     this.currentQNumEl.textContent = index + 1;
+
+    // Real-time Difficulty Badge Update
+    if (this.drillDiffBadge) {
+      const diff = this.currentQuestion.difficulty || 'normal';
+      this.drillDiffBadge.className = `badge badge-diff-${diff}`;
+      this.drillDiffBadge.textContent = diff === 'easy' ? '🟢 기초 (Lv.1)' : (diff === 'hard' ? '🔴 고난도 (Lv.3)' : '🟡 실전 (Lv.2)');
+    }
 
     // Progress bar
     const pct = ((index) / this.questions.length) * 100;
@@ -1541,10 +1736,11 @@ class VitaminApp {
       this.comparisonInputArea.classList.add('hidden');
       this.comparisonInputArea.style.display = 'none';
 
-      // Attach direct click events to comparison cards
+      // Attach direct click events to comparison cards with double-tap & ghost prevention
       this.expressionArea.querySelectorAll('.clickable-comp-card').forEach(card => {
-        card.onclick = () => {
-          if (this.isPaused) return;
+        card.onclick = (e) => {
+          if (e) e.preventDefault();
+          if (this.isPaused || !this.canAcceptInput || this.isSubmitting) return;
           this.submitAnswer(card.dataset.choice);
         };
       });
@@ -1554,12 +1750,21 @@ class VitaminApp {
       this.numericInputArea.classList.remove('hidden');
       this.numericInputArea.style.display = '';
       this.answerInput.value = '';
-      this.answerInput.focus();
+      // On mobile/tablet, prevent aggressive auto-focus which causes virtual keyboard to jump & displace touch coords
+      if (!this.isTouchDevice) {
+        this.answerInput.focus();
+      }
     }
 
     // Question Timer
     this.questionStartTime = performance.now();
     this.startQuestionTimer();
+
+    // Release input lock after brief stabilization delay (180ms)
+    setTimeout(() => {
+      this.canAcceptInput = true;
+      this.isSubmitting = false;
+    }, 180);
   }
 
   togglePause(forceState) {
@@ -1581,15 +1786,19 @@ class VitaminApp {
       this.btnPauseDrill.textContent = '⏸️ 일시정지';
       this.startQuestionTimer();
       this.startSessionTimer();
-      if (this.currentQuestion && this.currentQuestion.type === 'numeric') {
+      if (this.currentQuestion && this.currentQuestion.type === 'numeric' && !this.isTouchDevice) {
         this.answerInput.focus();
       }
     }
   }
 
   submitAnswer(userAns) {
-    if (!this.isDrillActive || !this.currentQuestion || this.isPaused) return;
+    if (!this.isDrillActive || !this.currentQuestion || this.isPaused || this.isSubmitting || !this.canAcceptInput) return;
     if (userAns === '') return;
+
+    // Immediately engage submission lock to prevent double-tap or ghost touch
+    this.isSubmitting = true;
+    this.canAcceptInput = false;
 
     const timeTaken = (performance.now() - this.questionStartTime) / 1000;
     const isCorrect = userAns.toString().trim().toLowerCase() === this.currentQuestion.correctAnswer.toLowerCase();
@@ -1669,7 +1878,13 @@ class VitaminApp {
     const fastest = Math.min(...this.questions.map(q => q.timeTaken)).toFixed(2);
 
     // Save stats & session history
-    const currentSession = this.stats.recordSession(this.currentMode, this.currentSubType, this.questions);
+    const currentSession = this.stats.recordSession(
+      this.currentMode, 
+      this.currentSubType, 
+      this.questions, 
+      this.currentDifficulty, 
+      this.selectedSubTypes
+    );
 
     // Render Scorecard
     this.resAccuracy.textContent = `${accuracy}%`;
@@ -1751,11 +1966,49 @@ class VitaminApp {
       filtered = filtered.filter(h => h.count === cnt);
     }
 
+    // Dynamic Subtype Filter Rendering
+    if (this.historySubFilterGroup && this.historySubFilter) {
+      if (this.historyFilterCat !== 'all' && this.subTypesMap[this.historyFilterCat]) {
+        this.historySubFilterGroup.classList.remove('hidden');
+        const subs = this.subTypesMap[this.historyFilterCat];
+        let subHtml = `<button class="btn-segment ${this.historyFilterSub === 'all' ? 'active' : ''}" data-sub="all">전체 세부유형</button>`;
+        subs.forEach(s => {
+          const isActive = this.historyFilterSub === s.id ? 'active' : '';
+          subHtml += `<button class="btn-segment ${isActive}" data-sub="${s.id}">${s.name}</button>`;
+        });
+        this.historySubFilter.innerHTML = subHtml;
+
+        // Bind subtype filter buttons
+        this.historySubFilter.querySelectorAll('.btn-segment').forEach(btn => {
+          btn.addEventListener('click', () => {
+            this.historySubFilter.querySelectorAll('.btn-segment').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            this.historyFilterSub = btn.dataset.sub;
+            this.renderHistoryView();
+          });
+        });
+      } else {
+        this.historySubFilterGroup.classList.add('hidden');
+        this.historyFilterSub = 'all';
+      }
+    }
+
+    // Apply Subtype Filter if chosen
+    if (this.historyFilterSub !== 'all') {
+      filtered = filtered.filter(h => {
+        if (h.subType === this.historyFilterSub) return true;
+        if (Array.isArray(h.subTypes) && h.subTypes.includes(this.historyFilterSub)) return true;
+        if (h.breakdown && h.breakdown[this.historyFilterSub]) return true;
+        return false;
+      });
+    }
+
     // Update header badges and titles
     this.historyMainStatBadge.textContent = `총 ${filtered.length}회차 기록`;
     const catName = this.historyFilterCat === 'all' ? '전체 영역' : this.getModeName(this.historyFilterCat);
+    const subName = this.historyFilterSub !== 'all' ? ` [${this.getSubName(this.historyFilterSub)}]` : '';
     const cntName = this.historyFilterCount === 'all' ? '전체 문항' : `${this.historyFilterCount}문항`;
-    document.getElementById('historyMainChartTitle').textContent = `📈 ${catName} (${cntName}) 회차별 총 소요시간 변화 (초)`;
+    document.getElementById('historyMainChartTitle').textContent = `📈 ${catName}${subName} (${cntName}) 회차별 총 소요시간 변화 (초)`;
 
     // Draw Main Line Chart
     const points = filtered.map((h, idx) => ({
@@ -1778,17 +2031,82 @@ class VitaminApp {
       reversed.forEach((h, idx) => {
         const roundNum = filtered.length - idx;
         const tr = document.createElement('tr');
+        tr.className = 'history-row-clickable';
+        tr.style.cursor = 'pointer';
+        tr.title = '클릭하여 세부 문항 분석 정보 확인';
+
         const accBadge = h.accuracy >= 90 ? 'is-correct' : (h.accuracy >= 75 ? 'badge-accent' : 'is-wrong');
+        
+        // Difficulty badge label
+        let diffLabel = '🟡 실전';
+        let diffClass = 'badge-diff-normal';
+        if (h.difficulty === 'easy') { diffLabel = '🟢 기초'; diffClass = 'badge-diff-easy'; }
+        else if (h.difficulty === 'hard') { diffLabel = '🔴 고난도'; diffClass = 'badge-diff-hard'; }
+        else if (h.difficulty === 'mixed') { diffLabel = '🎲 혼합'; diffClass = 'badge-diff-mixed'; }
+
+        // SubType label
+        let subBadgeText = '';
+        if (h.category === 'mixed') {
+          subBadgeText = '5대 영역 종합';
+        } else if (Array.isArray(h.subTypes) && h.subTypes.length > 1) {
+          subBadgeText = `${this.getSubName(h.subTypes[0])} 외 ${h.subTypes.length - 1}개`;
+        } else {
+          subBadgeText = this.getSubName(h.subType || (h.subTypes ? h.subTypes[0] : 'default'));
+        }
+
         tr.innerHTML = `
           <td><strong>#${roundNum}회차</strong></td>
           <td style="color: var(--text-muted); font-size: 0.8rem;">${h.date}</td>
-          <td><span class="badge badge-outline">${this.getModeName(h.category)}</span></td>
+          <td>
+            <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+              <span class="badge badge-outline">${this.getModeName(h.category)}</span>
+              <span style="font-size: 0.75rem; color: var(--text-muted);">${subBadgeText}</span>
+              <span class="badge ${diffClass}" style="font-size: 0.7rem; padding: 2px 6px;">${diffLabel}</span>
+            </div>
+          </td>
           <td><strong>${h.count}문항</strong></td>
           <td><strong style="color: var(--accent-secondary); font-size: 1.05rem;">${h.totalTimeSec}초</strong></td>
           <td>${h.avgSpeed}초/문항</td>
           <td><span class="row-badge ${accBadge}">${h.accuracy}%</span></td>
         `;
+
+        // Expandable Breakdown row
+        const detailTr = document.createElement('tr');
+        detailTr.className = 'history-detail-row hidden';
+        detailTr.style.background = 'var(--bg-surface-alt, rgba(0, 0, 0, 0.04))';
+
+        let breakdownHtml = '<div style="padding: 12px 16px; font-size: 0.85rem;">';
+        if (h.breakdown && Object.keys(h.breakdown).length > 0) {
+          breakdownHtml += '<strong style="display: block; margin-bottom: 6px;">📊 세부 문제유형별 성적 분석:</strong>';
+          breakdownHtml += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px;">';
+          for (const [subId, data] of Object.entries(h.breakdown)) {
+            const subNameStr = this.getSubName(subId);
+            const subAcc = data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0;
+            const subAvgTime = data.total > 0 ? (data.timeSec / data.total).toFixed(2) : 0;
+            breakdownHtml += `
+              <div style="background: var(--bg-card); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-subtle);">
+                <div style="font-weight: 700; color: var(--text-main); margin-bottom: 2px;">${subNameStr}</div>
+                <div style="color: var(--text-muted); font-size: 0.8rem;">
+                  정답률: <strong style="color: ${subAcc >= 80 ? 'var(--accent-success)' : 'var(--accent-warning)'};">${subAcc}%</strong> (${data.correct}/${data.total}문항)<br/>
+                  평균 속도: <strong>${subAvgTime}초</strong>
+                </div>
+              </div>
+            `;
+          }
+          breakdownHtml += '</div>';
+        } else {
+          breakdownHtml += `<span>총 ${h.count}문항 완주 | 평균 속도: ${h.avgSpeed}초 | 총 소요시간: ${h.totalTimeSec}초</span>`;
+        }
+        breakdownHtml += '</div>';
+
+        detailTr.innerHTML = `<td colspan="7" style="padding: 0;">${breakdownHtml}</td>`;
+
+        tr.addEventListener('click', () => {
+          detailTr.classList.toggle('hidden');
+        });
+
         this.historyTableBody.appendChild(tr);
+        this.historyTableBody.appendChild(detailTr);
       });
     }
   }
