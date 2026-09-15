@@ -250,8 +250,8 @@ class StatsManager {
     const wrongQs = questions.filter(q => !q.isCorrect);
     this.addWrongQuestions(wrongQs);
 
-    // Update today solved display
-    this.updateTodaySolvedCount(sessionSolved);
+    // Update today solved display & category counts
+    this.updateTodaySolvedCount(sessionSolved, category, questions);
 
     return historyItem;
   }
@@ -265,12 +265,33 @@ class StatsManager {
     localStorage.removeItem('psat_session_history_v1');
   }
 
-  updateTodaySolvedCount(addedCount = 0) {
+  updateTodaySolvedCount(addedCount = 0, category = 'mixed', questions = []) {
     const today = new Date().toISOString().split('T')[0];
     const key = `psat_today_solved_${today}`;
     let current = parseInt(localStorage.getItem(key) || '0', 10);
     current += addedCount;
     localStorage.setItem(key, current);
+
+    // Save per-category breakdown for today
+    const catKey = `psat_today_cat_solved_${today}`;
+    let catData = {};
+    try {
+      catData = JSON.parse(localStorage.getItem(catKey) || '{}');
+    } catch (e) {
+      catData = {};
+    }
+
+    if (category === 'mixed' && questions.length > 0) {
+      questions.forEach(q => {
+        const c = q.category || 'mixed';
+        catData[c] = (catData[c] || 0) + 1;
+      });
+      catData['mixed'] = (catData['mixed'] || 0) + addedCount;
+    } else {
+      catData[category] = (catData[category] || 0) + addedCount;
+    }
+    localStorage.setItem(catKey, JSON.stringify(catData));
+
     const el = document.getElementById('todaySolvedDisplay');
     if (el) el.textContent = current;
   }
@@ -279,6 +300,16 @@ class StatsManager {
     const today = new Date().toISOString().split('T')[0];
     const key = `psat_today_solved_${today}`;
     return parseInt(localStorage.getItem(key) || '0', 10);
+  }
+
+  getTodayCategorySolvedCounts() {
+    const today = new Date().toISOString().split('T')[0];
+    const catKey = `psat_today_cat_solved_${today}`;
+    try {
+      return JSON.parse(localStorage.getItem(catKey) || '{}');
+    } catch (e) {
+      return {};
+    }
   }
 
   getVault() {
@@ -654,51 +685,90 @@ class ProblemGenerator {
   // -------------------------------------------------------------
   static genFractionComp(subType, difficulty) {
     let n1, d1, n2, d2;
-    // 50% chance to generate improper fraction (가분수: numerator > denominator)
-    const isImproper = subType === 'frac_improper' ? true : (subType === 'frac_proper' ? false : Math.random() < 0.5);
-
-    if (difficulty === 'hard') {
-      // 1~3% ultra-fine difference (Difference method / 차분법)
-      d1 = this.randInt(300, 850);
-      const ratio = isImproper ? (this.randInt(115, 230) / 100) : (this.randInt(25, 75) / 100);
-      n1 = Math.round(d1 * ratio);
-      
-      const diffPercent = (this.randInt(1, 3) / 100) * (Math.random() < 0.5 ? 1 : -1);
-      d2 = Math.round(d1 * (1 + this.randInt(10, 40) / 100));
-      const val1 = n1 / d1;
-      const targetVal2 = val1 * (1 + diffPercent);
-      n2 = Math.round(d2 * targetVal2);
-    } else if (difficulty === 'normal') {
-      // 3-digit fraction, 5~12% difference
-      d1 = this.randInt(150, 700);
-      const ratio = isImproper ? (this.randInt(110, 210) / 100) : (this.randInt(25, 80) / 100);
-      n1 = Math.round(d1 * ratio);
-      
-      d2 = Math.round(d1 * (1 + this.randInt(15, 50) / 100));
-      const diff = (this.randInt(5, 12) / 100) * (Math.random() < 0.5 ? 1 : -1);
-      n2 = Math.round(d2 * ((n1 / d1) * (1 + diff)));
+    // Determine whether this problem is an improper fraction (분자 > 분모)
+    let isImproper = false;
+    if (subType === 'frac_improper') {
+      isImproper = true;
+    } else if (subType === 'frac_proper') {
+      isImproper = false;
     } else {
-      // Easy: 2-digit or obvious 15~30% difference
-      d1 = this.randInt(30, 95);
-      n1 = isImproper ? this.randInt(d1 + 10, d1 * 2) : this.randInt(10, d1 - 5);
-      d2 = this.randInt(30, 95);
-      n2 = isImproper ? this.randInt(d2 + 10, d2 * 2) : this.randInt(10, d2 - 5);
+      // Default / frac_std: alternate deterministically to guarantee 50% improper fraction presence
+      this._fracToggle = !this._fracToggle;
+      isImproper = this._fracToggle;
+    }
+
+    if (isImproper) {
+      // =========================================================
+      // IMPROPER FRACTION (가분수: 분자 > 분모) -> 몫 분리법 훈련
+      // =========================================================
+      if (difficulty === 'hard') {
+        d1 = this.randInt(250, 850);
+        const ratio1 = (this.randInt(115, 230) / 100);
+        n1 = Math.max(d1 + 25, Math.round(d1 * ratio1));
+        d2 = Math.round(d1 * (1 + (this.randInt(10, 35) / 100)));
+        const diffPercent = (this.randInt(1, 4) / 100) * (Math.random() < 0.5 ? 1 : -1);
+        const targetVal2 = (n1 / d1) * (1 + diffPercent);
+        n2 = Math.max(d2 + 25, Math.round(d2 * targetVal2));
+      } else if (difficulty === 'easy') {
+        d1 = this.randInt(25, 80);
+        const ratio1 = (this.randInt(130, 220) / 100);
+        n1 = Math.max(d1 + 10, Math.round(d1 * ratio1));
+        d2 = this.randInt(25, 80);
+        const ratio2 = (this.randInt(130, 220) / 100);
+        n2 = Math.max(d2 + 10, Math.round(d2 * ratio2));
+      } else {
+        // Normal
+        d1 = this.randInt(130, 650);
+        const ratio1 = (this.randInt(120, 210) / 100);
+        n1 = Math.max(d1 + 25, Math.round(d1 * ratio1));
+        d2 = Math.round(d1 * (1 + (this.randInt(15, 45) / 100)));
+        const diffPercent = (this.randInt(4, 12) / 100) * (Math.random() < 0.5 ? 1 : -1);
+        const targetVal2 = (n1 / d1) * (1 + diffPercent);
+        n2 = Math.max(d2 + 25, Math.round(d2 * targetVal2));
+      }
+    } else {
+      // =========================================================
+      // PROPER FRACTION (진분수: 분자 < 분모) -> 증가율/차분법 훈련
+      // =========================================================
+      if (difficulty === 'hard') {
+        d1 = this.randInt(300, 850);
+        n1 = Math.max(20, Math.round(d1 * (this.randInt(25, 75) / 100)));
+        d2 = Math.round(d1 * (1 + this.randInt(10, 40) / 100));
+        const diffPercent = (this.randInt(1, 3) / 100) * (Math.random() < 0.5 ? 1 : -1);
+        const targetVal2 = (n1 / d1) * (1 + diffPercent);
+        n2 = Math.min(d2 - 10, Math.round(d2 * targetVal2));
+      } else if (difficulty === 'easy') {
+        d1 = this.randInt(30, 95);
+        n1 = this.randInt(10, d1 - 8);
+        d2 = this.randInt(30, 95);
+        n2 = this.randInt(10, d2 - 8);
+      } else {
+        // Normal
+        d1 = this.randInt(150, 700);
+        n1 = Math.round(d1 * (this.randInt(25, 80) / 100));
+        d2 = Math.round(d1 * (1 + this.randInt(15, 50) / 100));
+        const diff = (this.randInt(5, 12) / 100) * (Math.random() < 0.5 ? 1 : -1);
+        n2 = Math.min(d2 - 10, Math.round(d2 * ((n1 / d1) * (1 + diff))));
+      }
     }
 
     // Ensure they are not strictly equal
     const v1 = n1 / d1;
     const v2 = n2 / d2;
-    if (Math.abs(v1 - v2) < 0.0001) {
+    if (Math.abs(v1 - v2) < 0.0002) {
       n1 += 2;
     }
 
     const isLeftBigger = (n1 / d1) > (n2 / d2);
     const correctAnswer = isLeftBigger ? 'left' : 'right';
 
+    const tagA = isImproper ? '<span class="comp-tag comp-tag-improper">가분수 A (분자>분모)</span>' : '<span class="comp-tag">진분수 A</span>';
+    const tagB = isImproper ? '<span class="comp-tag comp-tag-improper">가분수 B (분자>분모)</span>' : '<span class="comp-tag">진분수 B</span>';
+
     const displayHtml = `
       <div class="comparison-container">
         <div class="comp-item-card clickable-comp-card" data-choice="left" title="클릭하거나 키보드 ← 또는 A 키">
-          <span class="comp-tag">분수 A</span>
+          ${tagA}
           <div class="fraction-box">
             <span class="fraction-num">${n1}</span>
             <span class="fraction-den">${d1}</span>
@@ -707,7 +777,7 @@ class ProblemGenerator {
         </div>
         <div class="comp-vs-pill">VS</div>
         <div class="comp-item-card clickable-comp-card" data-choice="right" title="클릭하거나 키보드 → 또는 B 키">
-          <span class="comp-tag">분수 B</span>
+          ${tagB}
           <div class="fraction-box">
             <span class="fraction-num">${n2}</span>
             <span class="fraction-den">${d2}</span>
@@ -718,13 +788,13 @@ class ProblemGenerator {
     `;
 
     const tip = isImproper 
-      ? `가분수 몫 분리법: 자연수 1(또는 2)을 먼저 분리하고 잔여 진분수(${n1 % d1}/${d1} vs ${n2 % d2}/${d2})를 비교해보세요!`
-      : "분모와 분자의 증가율을 비교하거나 차분법(차이분수)을 적용해보세요!";
+      ? `💡 가분수 몫 분리법: 자연수 몫(${Math.floor(n1/d1)}과 ${Math.floor(n2/d2)})을 먼저 분리하고 잔여 진분수(${n1 % d1}/${d1} vs ${n2 % d2}/${d2})를 비교해보세요!`
+      : "💡 진분수 비교법: 분모와 분자의 증가율을 비교하거나 차분법(차이분수)을 적용해보세요!";
 
     return {
       type: 'comparison',
       category: 'frac',
-      subType: subType || 'frac_std',
+      subType: isImproper ? 'frac_improper' : 'frac_proper',
       displayHtml: displayHtml,
       rawExpression: `${n1}/${d1} vs ${n2}/${d2}`,
       correctAnswer: correctAnswer,
@@ -926,7 +996,7 @@ class ProblemGenerator {
         const addSubs = ['add_2x2', 'add_4x4', 'add_chain'];
         chosenSub = addSubs[this.randInt(0, addSubs.length - 1)];
       } else if (chosen === 'frac') {
-        const fracSubs = ['frac_std', 'frac_improper', 'frac_diff'];
+        const fracSubs = ['frac_std', 'frac_improper', 'frac_proper'];
         chosenSub = fracSubs[this.randInt(0, fracSubs.length - 1)];
       }
       const q = this.generate(chosen, chosenSub, actualDiff);
@@ -1008,9 +1078,9 @@ class VitaminApp {
         { id: 'mul_10_20', name: '10·20대 곱셈 (10~29 × 10~29)' }
       ],
       frac: [
-        { id: 'frac_std', name: '표준 분수 대소비교 (진분수+가분수 혼합)' },
+        { id: 'frac_improper', name: '가분수 대소비교 (분자 > 분모, 몫분리법)' },
         { id: 'frac_proper', name: '진분수 대소비교 (분자 < 분모)' },
-        { id: 'frac_improper', name: '가분수 대소비교 (분자 > 분모, 몫분리법)' }
+        { id: 'frac_std', name: '표준 분수 대소비교 (진분수 50% + 가분수 50%)' }
       ],
       mulcomp: [
         { id: 'mulcomp_std', name: '비타민 실전형 (4자리 × 소수 vs 4자리 × 소수)' },
@@ -1089,8 +1159,10 @@ class VitaminApp {
     this.btnHistoryToDrill = document.getElementById('btnHistoryToDrill');
     this.historySubFilterGroup = document.getElementById('historySubFilterGroup');
     this.historySubFilter = document.getElementById('historySubFilter');
+    this.historyDiffFilter = document.getElementById('historyDiffFilter');
 
     this.historyFilterCat = 'all';
+    this.historyFilterDiff = 'all';
     this.historyFilterCount = 'all';
     this.historyFilterSub = 'all';
 
@@ -1098,6 +1170,21 @@ class VitaminApp {
     this.isSubmitting = false;
     this.canAcceptInput = true;
     this.isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
+    // Popover interaction for mobile/tablet
+    const todayWidget = document.getElementById('todaySolvedWidget');
+    if (todayWidget) {
+      todayWidget.addEventListener('click', (e) => {
+        if (!e.target.closest('#todayBreakdownPopover')) {
+          todayWidget.classList.toggle('popover-open');
+        }
+      });
+      document.addEventListener('click', (e) => {
+        if (!todayWidget.contains(e.target)) {
+          todayWidget.classList.remove('popover-open');
+        }
+      });
+    }
 
     // Modal
     this.statsModal = document.getElementById('statsModal');
@@ -1327,6 +1414,16 @@ class VitaminApp {
         btn.classList.add('active');
         this.historyFilterCat = btn.dataset.cat;
         this.historyFilterSub = 'all';
+        this.renderHistoryView();
+      });
+    });
+
+    // History View Difficulty Filters
+    document.querySelectorAll('#historyDiffFilter .btn-segment').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#historyDiffFilter .btn-segment').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.historyFilterDiff = btn.dataset.diff;
         this.renderHistoryView();
       });
     });
@@ -1885,6 +1982,7 @@ class VitaminApp {
       this.currentDifficulty, 
       this.selectedSubTypes
     );
+    this.updateHeaderStats();
 
     // Render Scorecard
     this.resAccuracy.textContent = `${accuracy}%`;
@@ -1961,6 +2059,9 @@ class VitaminApp {
     if (this.historyFilterCat !== 'all') {
       filtered = filtered.filter(h => h.category === this.historyFilterCat);
     }
+    if (this.historyFilterDiff !== 'all') {
+      filtered = filtered.filter(h => (h.difficulty || 'normal') === this.historyFilterDiff);
+    }
     if (this.historyFilterCount !== 'all') {
       const cnt = parseInt(this.historyFilterCount, 10);
       filtered = filtered.filter(h => h.count === cnt);
@@ -2006,9 +2107,11 @@ class VitaminApp {
     // Update header badges and titles
     this.historyMainStatBadge.textContent = `총 ${filtered.length}회차 기록`;
     const catName = this.historyFilterCat === 'all' ? '전체 영역' : this.getModeName(this.historyFilterCat);
+    const diffNames = { all: '', easy: ' [기초]', normal: ' [실전]', hard: ' [고난도]', mixed: ' [난이도혼합]' };
+    const diffName = diffNames[this.historyFilterDiff] || '';
     const subName = this.historyFilterSub !== 'all' ? ` [${this.getSubName(this.historyFilterSub)}]` : '';
     const cntName = this.historyFilterCount === 'all' ? '전체 문항' : `${this.historyFilterCount}문항`;
-    document.getElementById('historyMainChartTitle').textContent = `📈 ${catName}${subName} (${cntName}) 회차별 총 소요시간 변화 (초)`;
+    document.getElementById('historyMainChartTitle').textContent = `📈 ${catName}${diffName}${subName} (${cntName}) 회차별 총 소요시간 변화 (초)`;
 
     // Draw Main Line Chart
     const points = filtered.map((h, idx) => ({
@@ -2395,7 +2498,34 @@ class VitaminApp {
 
   updateHeaderStats() {
     const todaySolved = this.stats.getTodaySolvedCount();
-    document.getElementById('todaySolvedDisplay').textContent = todaySolved;
+    const todayEl = document.getElementById('todaySolvedDisplay');
+    if (todayEl) todayEl.textContent = todaySolved;
+
+    const todayCatCounts = this.stats.getTodayCategorySolvedCounts();
+    const overallStats = this.stats.getStats();
+
+    // 1. Update Popover Breakdown
+    const cats = ['add', 'sub', 'mul', 'frac', 'mulcomp'];
+    cats.forEach(cat => {
+      const popEl = document.getElementById(`popSolved_${cat}`);
+      if (popEl) {
+        const count = todayCatCounts[cat] || 0;
+        popEl.textContent = `${count}개`;
+      }
+    });
+    const popTotal = document.getElementById('popSolved_total');
+    if (popTotal) popTotal.textContent = `${todaySolved}개`;
+
+    // 2. Update Lobby Mode Card solved counters
+    const allModes = ['add', 'sub', 'mul', 'frac', 'mulcomp', 'mixed'];
+    allModes.forEach(mode => {
+      const counterEl = document.getElementById(`modeCounter_${mode}`);
+      if (counterEl) {
+        const todayCount = todayCatCounts[mode] || 0;
+        const totalCum = (overallStats.categories && overallStats.categories[mode]) ? overallStats.categories[mode].solved : 0;
+        counterEl.textContent = `오늘 ${todayCount}개 · 누적 ${totalCum}문항`;
+      }
+    });
   }
 
   formatSeconds(totalSec) {
